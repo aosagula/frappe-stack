@@ -1,0 +1,12 @@
+frappe-bench/
+config/
+logs/
+sites/
+sites
+
+*.pyc
+__pycache__/
+.DS_Store
+Thumbs.db
+.env
+deploy/production/.env

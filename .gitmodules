@@ -1,0 +1,20 @@
+[submodule "apps/frappe"]
+	path = apps/frappe
+	url = git@github.com:aosagula/frappe.git
+	branch = agentic4biz-v15
+[submodule "apps/erpnext"]
+	path = apps/erpnext
+	url = git@github.com:aosagula/erpnext.git
+	branch = agentic4biz-v15
+[submodule "apps/crm"]
+	path = apps/crm
+	url = git@github.com:aosagula/crm.git
+	branch = agentic4biz-v15
+[submodule "apps/helpdesk"]
+	path = apps/helpdesk
+	url = git@github.com:aosagula/helpdesk.git
+	branch = agentic4biz-v15
+[submodule "apps/telephony"]
+	path = apps/telephony
+	url = git@github.com:aosagula/telephony.git
+	branch = agentic4biz-v15

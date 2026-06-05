@@ -1,0 +1,143 @@
+name: ${COMPOSE_PROJECT_NAME:-frappe-production}
+
+x-backend: &backend
+  image: ${FRAPPE_IMAGE:-agentic4biz/frappe-production:main}
+  build:
+    context: ../..
+    dockerfile: deploy/production/Dockerfile
+  environment:
+    SITE_NAME: ${SITE_NAME:-frappe.agentic4biz.com}
+    DB_HOST: mariadb
+    DB_PORT: 3306
+    DB_ROOT_USER: root
+    DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+    REDIS_CACHE: redis://redis-cache:6379
+    REDIS_QUEUE: redis://redis-queue:6379
+    REDIS_SOCKETIO: redis://redis-socketio:6379
+    SOCKETIO_PORT: 9000
+    DEVELOPER_MODE: ${DEVELOPER_MODE:-0}
+  volumes:
+    - sites:/home/frappe/frappe-bench/sites
+    - logs:/home/frappe/frappe-bench/logs
+  depends_on:
+    mariadb:
+      condition: service_healthy
+    redis-cache:
+      condition: service_started
+    redis-queue:
+      condition: service_started
+    redis-socketio:
+      condition: service_started
+  networks:
+    - internal
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?set DB_ROOT_PASSWORD}
+    volumes:
+      - mariadb:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+    networks:
+      - internal
+
+  redis-cache:
+    image: redis:7-alpine
+    networks:
+      - internal
+
+  redis-queue:
+    image: redis:7-alpine
+    networks:
+      - internal
+
+  redis-socketio:
+    image: redis:7-alpine
+    networks:
+      - internal
+
+  init:
+    <<: *backend
+    command: init-site
+    restart: "no"
+
+  backend:
+    <<: *backend
+    command:
+      - /home/frappe/frappe-bench/env/bin/gunicorn
+      - --chdir=/home/frappe/frappe-bench/sites
+      - --bind=0.0.0.0:8000
+      - --threads=${GUNICORN_THREADS:-4}
+      - --workers=${GUNICORN_WORKERS:-2}
+      - --worker-class=gthread
+      - --worker-tmp-dir=/dev/shm
+      - --timeout=${GUNICORN_TIMEOUT:-120}
+      - frappe.app:application
+      - --preload
+    restart: unless-stopped
+
+  websocket:
+    <<: *backend
+    command: node /home/frappe/frappe-bench/apps/frappe/socketio.js
+    restart: unless-stopped
+
+  scheduler:
+    <<: *backend
+    command: bench schedule
+    restart: unless-stopped
+
+  queue-short:
+    <<: *backend
+    command: bench worker --queue short
+    restart: unless-stopped
+
+  queue-default:
+    <<: *backend
+    command: bench worker --queue default
+    restart: unless-stopped
+
+  queue-long:
+    <<: *backend
+    command: bench worker --queue long
+    restart: unless-stopped
+
+  frontend:
+    <<: *backend
+    user: root
+    command: start-nginx
+    depends_on:
+      backend:
+        condition: service_started
+      websocket:
+        condition: service_started
+    restart: unless-stopped
+    expose:
+      - "8080"
+    networks:
+      internal:
+      proxy:
+        aliases:
+          - frappe.agentic4biz.com
+          - frappe-frontend
+
+volumes:
+  mariadb:
+  sites:
+  logs:
+
+networks:
+  internal:
+  proxy:
+    external: true
+    name: ${PROXY_NETWORK:-reverse-proxy}

@@ -1,0 +1,65 @@
+name: ${COMPOSE_PROJECT_NAME:-frappe-local}
+
+x-bench: &bench
+  image: ${BENCH_IMAGE:-frappe/bench:latest}
+  working_dir: ${FRAPPE_BENCH_DIR:-/workspace/frappe-bench}
+  environment:
+    FRAPPE_BENCH_DIR: ${FRAPPE_BENCH_DIR:-/workspace/frappe-bench}
+    FRAPPE_SITE_NAME: ${FRAPPE_SITE_NAME:-frappe.localhost}
+    DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-admin}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}
+    FRAPPE_BRANCH: ${FRAPPE_BRANCH:-version-15}
+  volumes:
+    - .:/workspace
+  depends_on:
+    mariadb:
+      condition: service_healthy
+    redis-cache:
+      condition: service_started
+    redis-queue:
+      condition: service_started
+    redis-socketio:
+      condition: service_started
+
+services:
+  mariadb:
+    image: mariadb:10.6
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --skip-character-set-client-handshake
+      - --skip-innodb-read-only-compressed
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:-admin}
+    volumes:
+      - mariadb-data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD:-admin}"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  redis-cache:
+    image: redis:7-alpine
+
+  redis-queue:
+    image: redis:7-alpine
+
+  redis-socketio:
+    image: redis:7-alpine
+
+  init:
+    <<: *bench
+    profiles: ["setup"]
+    working_dir: /workspace
+    command: bash /workspace/scripts/init-bench.sh
+
+  bench:
+    <<: *bench
+    command: bash /workspace/scripts/start-bench.sh
+    ports:
+      - "8000:8000"
+      - "9000:9000"
+
+volumes:
+  mariadb-data:
