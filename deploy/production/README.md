@@ -82,10 +82,21 @@ VPS_HOST
 VPS_USER
 VPS_SSH_KEY
 VPS_DEPLOY_PATH
+REPO_SSH_URL
 ```
 
-En el VPS, `VPS_DEPLOY_PATH` debe contener un clone de este repo y el archivo:
+`REPO_SSH_URL` debe ser la URL SSH del repo principal, por ejemplo:
+
+```text
+git@github.com:aosagula/frappe-stack.git
+```
+
+En el VPS, `VPS_DEPLOY_PATH` puede estar vacio. El workflow lo clona automaticamente si no tiene `.git`.
+
+El archivo de entorno de produccion debe existir en:
 
 ```text
 deploy/production/.env
 ```
+
+Si el workflow clona el repo por primera vez, crear ese archivo luego en el VPS y relanzar el job.

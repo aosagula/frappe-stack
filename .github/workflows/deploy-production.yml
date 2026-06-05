@@ -18,7 +18,22 @@ jobs:
           script_stop: true
           script: |
             set -euo pipefail
-            cd "${{ secrets.VPS_DEPLOY_PATH }}"
+            DEPLOY_PATH="${{ secrets.VPS_DEPLOY_PATH }}"
+            REPO_SSH_URL="${{ secrets.REPO_SSH_URL }}"
+
+            mkdir -p "$DEPLOY_PATH"
+
+            if [ ! -d "$DEPLOY_PATH/.git" ]; then
+              if [ -n "$(find "$DEPLOY_PATH" -mindepth 1 -maxdepth 1 -print -quit)" ]; then
+                echo "Deploy path exists but is not a Git repository: $DEPLOY_PATH" >&2
+                echo "Move its contents away or choose an empty VPS_DEPLOY_PATH." >&2
+                exit 1
+              fi
+
+              git clone "$REPO_SSH_URL" "$DEPLOY_PATH"
+            fi
+
+            cd "$DEPLOY_PATH"
             git fetch origin main
             git reset --hard origin/main
             git submodule sync --recursive
