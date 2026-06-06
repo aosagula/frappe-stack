@@ -67,6 +67,7 @@ services:
 
   init:
     <<: *backend
+    profiles: ["setup"]
     command: init-site
     restart: "no"
 
