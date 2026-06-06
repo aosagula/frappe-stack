@@ -2,7 +2,7 @@ server {
 	listen 8080;
 	server_name ${SITE_NAME};
 
-	client_max_body_size ${CLIENT_MAX_BODY_SIZE:-50m};
+	client_max_body_size ${CLIENT_MAX_BODY_SIZE};
 
 	root /home/frappe/frappe-bench/sites;
 
