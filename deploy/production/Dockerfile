@@ -11,7 +11,11 @@ USER frappe
 
 WORKDIR /home/frappe
 
-COPY --chown=frappe:frappe apps /home/frappe/src/apps
+COPY --chown=frappe:frappe apps/frappe     /home/frappe/src/apps/frappe
+COPY --chown=frappe:frappe apps/erpnext    /home/frappe/src/apps/erpnext
+COPY --chown=frappe:frappe apps/crm        /home/frappe/src/apps/crm
+COPY --chown=frappe:frappe apps/telephony  /home/frappe/src/apps/telephony
+COPY --chown=frappe:frappe apps/helpdesk   /home/frappe/src/apps/helpdesk
 COPY --chown=frappe:frappe deploy/production/scripts/build-image-bench.sh /home/frappe/build-image-bench.sh
 
 RUN bash /home/frappe/build-image-bench.sh

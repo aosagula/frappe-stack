@@ -1,10 +1,8 @@
 name: ${COMPOSE_PROJECT_NAME:-frappe-production}
 
 x-backend: &backend
-  image: ${FRAPPE_IMAGE:-agentic4biz/frappe-production:main}
-  build:
-    context: ../..
-    dockerfile: deploy/production/Dockerfile
+  image: ${FRAPPE_IMAGE:-ghcr.io/aosagula/frappe-production:main}
+  pull_policy: always
   environment:
     SITE_NAME: ${SITE_NAME:-frappe.agentic4biz.com}
     DB_HOST: mariadb
