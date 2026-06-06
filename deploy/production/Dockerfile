@@ -19,6 +19,8 @@ COPY --chown=frappe:frappe apps/helpdesk   /home/frappe/src/apps/helpdesk
 COPY --chown=frappe:frappe deploy/production/scripts/build-image-bench.sh /home/frappe/build-image-bench.sh
 
 RUN bash /home/frappe/build-image-bench.sh
+RUN mkdir -p /home/frappe/prebuilt-assets \
+	&& cp -a /home/frappe/frappe-bench/sites/assets/. /home/frappe/prebuilt-assets/
 
 USER root
 

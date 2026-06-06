@@ -46,5 +46,6 @@ install_site_app telephony
 install_site_app helpdesk
 
 bench --site "${SITE_NAME}" migrate
-bench build
+mkdir -p sites/assets
+cp -a /home/frappe/prebuilt-assets/. sites/assets/
 bench --site "${SITE_NAME}" clear-cache
