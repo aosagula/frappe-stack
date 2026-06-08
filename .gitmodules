@@ -1,7 +1,7 @@
 [submodule "apps/frappe"]
 	path = apps/frappe
 	url = git@github.com:aosagula/frappe.git
-	branch = agentic4biz-v15
+	branch = agentic4biz-v15-navbar-fix
 [submodule "apps/erpnext"]
 	path = apps/erpnext
 	url = git@github.com:aosagula/erpnext.git
