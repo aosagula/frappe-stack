@@ -49,3 +49,4 @@ bench --site "${SITE_NAME}" migrate
 mkdir -p sites/assets
 cp -a /home/frappe/prebuilt-assets/. sites/assets/
 bench --site "${SITE_NAME}" clear-cache
+bench --site "${SITE_NAME}" clear-website-cache

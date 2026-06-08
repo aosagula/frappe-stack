@@ -89,6 +89,7 @@ jobs:
             docker compose --env-file deploy/production/.env -f deploy/production/compose.yml up -d mariadb redis-cache redis-queue redis-socketio
             docker compose --env-file deploy/production/.env -f deploy/production/compose.yml run --rm init
             docker compose --env-file deploy/production/.env -f deploy/production/compose.yml up -d
+            docker compose --env-file deploy/production/.env -f deploy/production/compose.yml run --rm backend sh -lc 'bench --site "${SITE_NAME:-frappe.agentic4biz.com}" clear-cache && bench --site "${SITE_NAME:-frappe.agentic4biz.com}" clear-website-cache'
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
