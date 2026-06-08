@@ -11,6 +11,8 @@ x-bench: &bench
     FRAPPE_BRANCH: ${FRAPPE_BRANCH:-version-15}
   volumes:
     - .:/workspace
+  extra_hosts:
+    - "${FRAPPE_SITE_NAME:-frappe.localhost}:127.0.0.1"
   depends_on:
     mariadb:
       condition: service_healthy

@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git fetch *)",
+      "Bash(git submodule *)",
+      "Bash(ssh -T git@github.com)",
+      "Read(//c/Users/asagula/.ssh/**)",
+      "Bash(ssh-add -l)"
+    ],
+    "additionalDirectories": [
+      "c:\\prg\\propios\\frappe-stack\\.git\\modules\\apps\\erpnext"
+    ]
+  }
+}
