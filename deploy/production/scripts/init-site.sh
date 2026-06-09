@@ -50,8 +50,10 @@ bench --site "${SITE_NAME}" migrate
 # Mark setup wizard complete so the desk renders the navbar correctly.
 # ERPNext sets desktop:home_page=setup-wizard and is_setup_complete=0
 # in tabInstalled Application; fix both so the desk loads normally.
-echo "UPDATE \`tabInstalled Application\` SET is_setup_complete=1 WHERE app_name IN ('frappe','erpnext');
-UPDATE \`tabDefaultValue\` SET defvalue='home' WHERE defkey='desktop:home_page' AND defvalue='setup-wizard';" \
+echo "SET SQL_SAFE_UPDATES=0;
+UPDATE \`tabInstalled Application\` SET is_setup_complete=1 WHERE app_name IN ('frappe','erpnext');
+UPDATE \`tabDefaultValue\` SET defvalue='home' WHERE defkey='desktop:home_page' AND defvalue='setup-wizard';
+SET SQL_SAFE_UPDATES=1;" \
 	| bench --site "${SITE_NAME}" mariadb
 
 mkdir -p sites/assets
