@@ -46,6 +46,16 @@ install_site_app telephony
 install_site_app helpdesk
 
 bench --site "${SITE_NAME}" migrate
+
+# Mark setup wizard complete so the desk renders the navbar correctly.
+# ERPNext sets desktop:home_page=setup-wizard and is_setup_complete=0
+# in tabInstalled Application; we fix both after every migration so a
+# fresh install or redeploy never gets stuck on the setup-wizard page.
+bench --site "${SITE_NAME}" execute frappe.db.sql \
+	--args "['UPDATE \`tabInstalled Application\` SET is_setup_complete=1 WHERE app_name IN (''frappe'',''erpnext'')']"
+bench --site "${SITE_NAME}" execute frappe.db.sql \
+	--args "['UPDATE \`tabDefaultValue\` SET defvalue=''home'' WHERE defkey=''desktop:home_page'' AND defvalue=''setup-wizard''']"
+
 mkdir -p sites/assets
 cp -a /home/frappe/prebuilt-assets/. sites/assets/
 bench --site "${SITE_NAME}" clear-cache
