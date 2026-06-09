@@ -49,12 +49,18 @@ bench --site "${SITE_NAME}" migrate
 
 # Mark setup wizard complete so the desk renders the navbar correctly.
 # ERPNext sets desktop:home_page=setup-wizard and is_setup_complete=0
-# in tabInstalled Application; we fix both after every migration so a
-# fresh install or redeploy never gets stuck on the setup-wizard page.
-bench --site "${SITE_NAME}" execute frappe.db.sql \
-	--args "['UPDATE \`tabInstalled Application\` SET is_setup_complete=1 WHERE app_name IN (''frappe'',''erpnext'')']"
-bench --site "${SITE_NAME}" execute frappe.db.sql \
-	--args "['UPDATE \`tabDefaultValue\` SET defvalue=''home'' WHERE defkey=''desktop:home_page'' AND defvalue=''setup-wizard''']"
+# in tabInstalled Application; fix both so the desk loads normally.
+cat > /tmp/frappe_setup_complete.py << PYEOF
+import frappe
+frappe.init(site="${SITE_NAME}", sites_path="${BENCH_DIR}/sites")
+frappe.connect()
+frappe.db.sql("UPDATE \`tabInstalled Application\` SET is_setup_complete=1 WHERE app_name IN ('frappe','erpnext')")
+frappe.db.sql("UPDATE \`tabDefaultValue\` SET defvalue='home' WHERE defkey='desktop:home_page' AND defvalue='setup-wizard'")
+frappe.db.commit()
+frappe.destroy()
+print("Setup wizard marked complete.")
+PYEOF
+"${BENCH_DIR}/env/bin/python" /tmp/frappe_setup_complete.py
 
 mkdir -p sites/assets
 cp -a /home/frappe/prebuilt-assets/. sites/assets/
