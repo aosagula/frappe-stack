@@ -1,0 +1,14 @@
+[
+ {
+  "doctype": "Custom Field",
+  "name": "Item-posicion_ncm",
+  "dt": "Item",
+  "fieldname": "posicion_ncm",
+  "fieldtype": "Data",
+  "label": "Posicion NCM",
+  "insert_after": "item_group",
+  "in_standard_filter": 1,
+  "description": "Posicion arancelaria: 0000.00.00 o 0000.00.00.000A",
+  "module": "Cliente Demo"
+ }
+]

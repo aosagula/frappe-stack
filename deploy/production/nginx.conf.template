@@ -3,6 +3,14 @@ map $http_x_forwarded_proto $frappe_forwarded_proto {
 	"" $scheme;
 }
 
+# El servidor de realtime de Frappe exige el header Origin y lo usa para armar la URL.
+# Algunos requests de polling same-origin no lo traen; antes lo parcheabamos en el fork
+# de Frappe (realtime/utils.js). Ahora lo completamos aca y el core queda oficial.
+map $http_origin $frappe_origin {
+	default $http_origin;
+	"" "$frappe_forwarded_proto://${SITE_NAME}";
+}
+
 server {
 	listen 8080;
 	server_name ${SITE_NAME};
@@ -38,6 +46,7 @@ server {
 		proxy_set_header X-Forwarded-Host ${SITE_NAME};
 		proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
 		proxy_set_header X-Forwarded-Proto $frappe_forwarded_proto;
+		proxy_set_header Origin $frappe_origin;
 		proxy_pass http://websocket:9000;
 	}
 

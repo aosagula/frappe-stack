@@ -1,0 +1,18 @@
+{
+  "name": "agentic4biz",
+  "description": "Instancia propia (antes frappe-stack en main). Deploy deshabilitado hasta aprobar la migracion v15 -> v16.",
+  "site": "frappe.agentic4biz.com",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "maintenance_window": {
+    "days": ["sun"],
+    "start": "03:00",
+    "duration_minutes": 120
+  },
+  "optional_apps": ["crm", "telephony", "helpdesk"],
+  "app": null,
+  "release": "",
+  "deploy": {
+    "enabled": false,
+    "canary": false
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "demo",
+  "description": "Cliente ficticio de ejemplo: despachante con clasificacion NCM en articulos.",
+  "site": "demo.agentic4biz.com",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "maintenance_window": {
+    "days": ["sun"],
+    "start": "02:00",
+    "duration_minutes": 120
+  },
+  "optional_apps": [],
+  "app": {
+    "name": "cliente_demo",
+    "path": "clients/demo/cliente_demo"
+  },
+  "release": "",
+  "deploy": {
+    "enabled": false,
+    "canary": true
+  }
+}
