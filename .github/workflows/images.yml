@@ -108,7 +108,15 @@ jobs:
             fi
             sleep 5
           done
-          dc logs --tail 100
+          # Diagnostico visible como anotaciones del job (los logs completos no siempre son accesibles)
+          diag="$({
+            dc ps -a
+            dc exec -T frontend curl -sS -i -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping || true
+            for svc in frontend backend; do dc logs --tail 25 "$svc"; done
+          } 2>&1 | tail -80)"
+          diag="${diag//'%'/'%25'}"
+          diag="${diag//$'\n'/'%0A'}"
+          echo "::error title=smoke ${{ matrix.client }}::${diag}"
           exit 1
 
       - name: Publicar
