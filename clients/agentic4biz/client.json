@@ -4,12 +4,20 @@
   "site": "frappe.agentic4biz.com",
   "timezone": "America/Argentina/Buenos_Aires",
   "maintenance_window": {
-    "days": ["sun"],
+    "days": [
+      "sun"
+    ],
     "start": "03:00",
     "duration_minutes": 120
   },
-  "optional_apps": ["crm", "telephony", "helpdesk"],
+  "optional_apps": [
+    "crm",
+    "telephony",
+    "helpdesk"
+  ],
   "app": null,
+  "external_apps": [],
+  "cors_origins": [],
   "release": "",
   "deploy": {
     "enabled": false,

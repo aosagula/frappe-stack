@@ -102,6 +102,16 @@ def cmd_validate(_args):
 				errors.append(f"{where}: no existe {app['path']}/{app['name']}/hooks.py")
 			if not app.get("path") and not (app.get("repo") and len(app.get("commit", "")) == 40):
 				errors.append(f"{where}: app externa necesita repo y commit completo")
+		for ext in c.get("external_apps", []):
+			if not ext.get("name") or ext.get("type") not in ("mobile", "web", "integration"):
+				errors.append(f"{where}: external_apps necesita name y type (mobile|web|integration)")
+			version = ext.get("api_version")
+			if version and app and app.get("path"):
+				if not (ROOT / app["path"] / app["name"] / "api" / version).is_dir():
+					errors.append(f"{where}: {ext.get('name')} usa api {version} pero no existe en {app['name']}/api/")
+		for origin in c.get("cors_origins", []):
+			if not re.fullmatch(r"https://[A-Za-z0-9.-]+(:\d+)?", origin):
+				errors.append(f"{where}: cors_origins debe ser https://host sin path: '{origin}'")
 		if c.get("deploy", {}).get("enabled") and not c.get("release"):
 			errors.append(f"{where}: deploy habilitado sin 'release' (tag de imagen aprobado)")
 	if errors:

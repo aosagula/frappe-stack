@@ -57,6 +57,7 @@ RUN apt-get update \
 COPY --from=builder --chown=frappe:frappe /home/frappe/frappe-bench /home/frappe/frappe-bench
 COPY --from=builder --chown=frappe:frappe /home/frappe/prebuilt-assets /home/frappe/prebuilt-assets
 COPY --from=builder --chown=frappe:frappe /home/frappe/client-apps.txt /home/frappe/client-apps.txt
+COPY --from=builder --chown=frappe:frappe /home/frappe/platform/clients/${CLIENT}/client.json /home/frappe/client.json
 COPY deploy/production/nginx.conf.template /etc/nginx/templates/frappe.conf.template
 COPY deploy/production/scripts/init-site.sh /usr/local/bin/init-site
 COPY deploy/production/scripts/start-nginx.sh /usr/local/bin/start-nginx

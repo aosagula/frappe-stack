@@ -8,3 +8,4 @@ Ejemplo incluido:
 - Campo `posicion_ncm` en Articulo (fixture de Custom Field).
 - Validacion del formato NCM (`0000.00.00` o `0000.00.00.000X`) al guardar el articulo.
 - Tests unitarios de la validacion y de integracion del campo instalado.
+- API v1 para apps externas: `api/v1/articulos.py` (`listar`, `obtener`) con tests de contrato en `tests/test_api_v1.py`.

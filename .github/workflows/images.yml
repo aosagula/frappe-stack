@@ -97,7 +97,14 @@ jobs:
           dc up -d
           for i in $(seq 1 60); do
             if dc exec -T frontend curl -fsS -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping; then
-              echo; echo "Smoke OK"; exit 0
+              echo; echo "Smoke OK"
+              for origin in $(python3 ../../scripts/stack.py get ${{ matrix.client }} cors_origins | python3 -c "import json,sys; print(' '.join(json.loads(sys.stdin.read() or '[]')))"); do
+                dc exec -T frontend curl -fsS -D - -o /dev/null -H "Host: ${SITE}" -H "Origin: ${origin}" \
+                  http://127.0.0.1:8080/api/method/ping | grep -i "access-control-allow-origin: ${origin}" \
+                  || { echo "CORS no aplicado para ${origin}"; exit 1; }
+                echo "CORS OK: ${origin}"
+              done
+              exit 0
             fi
             sleep 5
           done

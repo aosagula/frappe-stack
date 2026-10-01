@@ -40,6 +40,14 @@ done < /home/frappe/client-apps.txt
 
 bench --site "${SITE_NAME}" migrate
 
+# Origenes web autorizados a llamar la API (apps web externas del cliente). Las apps moviles nativas no lo necesitan.
+cors="$(python3 -c 'import json; print(json.dumps(json.load(open("/home/frappe/client.json")).get("cors_origins", [])))')"
+if [ "$cors" != "[]" ]; then
+	bench --site "${SITE_NAME}" set-config allow_cors "$cors" --parse
+else
+	bench --site "${SITE_NAME}" set-config allow_cors "None" --parse
+fi
+
 mkdir -p sites/assets
 cp -a /home/frappe/prebuilt-assets/. sites/assets/
 bench --site "${SITE_NAME}" clear-cache

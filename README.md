@@ -39,6 +39,19 @@ Clientes incluidos:
 - `demo`: ficticio. App `cliente_demo` con campo NCM en Articulo, validacion y tests.
 - `agentic4biz`: la instancia que antes desplegaba `main`. Deploy **deshabilitado** hasta planificar la migracion v15 → v16.
 
+## Apps externas (movil, web, integraciones)
+
+Las apps externas viven en su propio repo y hablan con ERPNext solo por una **API propia versionada**
+dentro de la app del cliente (o de `agentic_base` si la comparten varios clientes), nunca por `/api/resource/<Doctype>`.
+
+- Endpoints en `<app>/api/v1/…` (ejemplo: `cliente_demo.api.v1.articulos.listar`).
+- Dentro de una version solo se agregan campos o endpoints. Un cambio incompatible va a `v2` y `v1` sigue viva mientras haya apps viejas instaladas.
+- Cada endpoint tiene **tests de contrato** (`tests/test_api_v1.py`): campos, tipos, paginacion, permisos y metodo HTTP. Si un cambio del core o propio los rompe, el CI queda en rojo.
+- En `client.json`:
+  - `external_apps`: que apps usa el cliente y que version de la API consumen (se valida que exista).
+  - `cors_origins`: dominios de apps web autorizados (se aplican en cada deploy y el smoke test verifica el header). Las apps moviles nativas no lo necesitan.
+- Autenticacion: usuarios de la app con OAuth2 de Frappe o token por usuario; integraciones con API key de un usuario tecnico con permisos acotados. Nunca credenciales de Administrator en una app.
+
 ## Flujo de un cambio
 
 1. **PR** (cambio en core, base o cliente) → workflow **CI**: valida configs, lint, y por cada cliente arma el bench, instala en un sitio limpio, corre los tests de la base y del cliente, y migra dos veces. Si hay snapshot del cliente (`SNAPSHOT_URL_<CLIENTE>`), lo restaura y migra encima.
