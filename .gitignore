@@ -12,3 +12,4 @@ Thumbs.db
 deploy/production/.env
 
 .work/
+dump.rdb
