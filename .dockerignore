@@ -16,3 +16,4 @@ sites/
 
 .env
 deploy/production/.env
+.work/

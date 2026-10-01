@@ -1,0 +1,109 @@
+name: CI
+
+# Cada cambio (core, app base o app de un cliente) se prueba contra TODOS los clientes.
+# Si un cliente queda en rojo, el cambio no se aprueba.
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      clients: ${{ steps.matrix.outputs.clients }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validar stack.json y clientes
+        run: python3 scripts/stack.py validate
+      - name: Sin monkey patches al core
+        run: bash scripts/check-no-monkeypatch.sh
+      - name: Lint
+        run: pipx run ruff check apps clients
+      - id: matrix
+        run: echo "clients=$(python3 scripts/stack.py matrix)" >> "$GITHUB_OUTPUT"
+
+  test:
+    needs: plan
+    name: test (${{ matrix.client }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        client: ${{ fromJSON(needs.plan.outputs.clients) }}
+    services:
+      mariadb:
+        image: mariadb:11.8
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=5s --health-retries=30
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+
+      - name: Dependencias de sistema
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq mariadb-client libmariadb-dev pkg-config
+          pip install frappe-bench
+          corepack enable
+
+      - name: Cache del core descargado
+        uses: actions/cache@v4
+        with:
+          path: |
+            .work/${{ matrix.client }}/src
+            ~/.cache/pip
+            ~/.cache/yarn
+          key: core-${{ matrix.client }}-${{ hashFiles('stack.json') }}
+
+      # Opcional: backup anonimizado del cliente para probar la migracion sobre datos reales.
+      # Configurar el secret SNAPSHOT_URL_<CLIENTE> (en mayusculas) con una URL firmada al .sql.gz.
+      - name: Descargar snapshot del cliente (si existe)
+        env:
+          SNAPSHOT_URL: ${{ secrets[format('SNAPSHOT_URL_{0}', matrix.client)] }}
+        run: |
+          if [ -n "$SNAPSHOT_URL" ]; then
+            curl -fsSL "$SNAPSHOT_URL" -o "$RUNNER_TEMP/snapshot.sql.gz"
+            echo "SNAPSHOT_SQL=$RUNNER_TEMP/snapshot.sql.gz" >> "$GITHUB_ENV"
+          else
+            echo "Sin snapshot configurado para ${{ matrix.client }}"
+          fi
+
+      - name: Instalar y testear ${{ matrix.client }}
+        env:
+          PYTHON: python3.14
+          DB_HOST: 127.0.0.1
+          DB_ROOT_PASSWORD: root
+          REDIS_URL: redis://127.0.0.1:6379
+        run: bash scripts/ci-test-client.sh ${{ matrix.client }}
+
+      - name: Resultados
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.client }}
+          path: .work/${{ matrix.client }}/results/
+          if-no-files-found: ignore

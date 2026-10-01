@@ -1,0 +1,107 @@
+name: Deploy en ventana
+
+# Corre cada hora. Para cada cliente con deploy habilitado, si su ventana de mantenimiento
+# esta abierta EN SU HORA LOCAL y el release aprobado en client.json difiere del que corre,
+# lo despliega (backup, migrate, health check y rollback automatico si falla).
+#
+# Aprobar un release = PR que cambia "release" en clients/<cliente>/client.json.
+# Orden sugerido: primero el cliente canario, 48 h despues el resto.
+
+on:
+  schedule:
+    - cron: "7 * * * *"
+  workflow_dispatch:
+    inputs:
+      client:
+        description: "Cliente puntual (vacio = todos los que esten en ventana)"
+        required: false
+      force:
+        description: "Ignorar la ventana (solo emergencias, ej. parche de seguridad)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      clients: ${{ steps.due.outputs.clients }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: due
+        env:
+          CLIENT: ${{ inputs.client }}
+          FORCE: ${{ inputs.force }}
+        run: |
+          set -euo pipefail
+          if [ -n "${CLIENT:-}" ] && [ "${FORCE:-false}" = "true" ]; then
+            enabled="$(python3 scripts/stack.py get "$CLIENT" deploy.enabled)"
+            [ "$enabled" = "True" ] || { echo "$CLIENT tiene el deploy deshabilitado"; exit 1; }
+            clients="[\"$CLIENT\"]"
+          else
+            clients="$(python3 scripts/stack.py due)"
+            if [ -n "${CLIENT:-}" ]; then
+              clients="$(echo "$clients" | python3 -c "import json,sys; c=json.load(sys.stdin); print(json.dumps([x for x in c if x=='$CLIENT']))")"
+            fi
+          fi
+          echo "En ventana: $clients"
+          echo "clients=$clients" >> "$GITHUB_OUTPUT"
+
+  deploy:
+    needs: plan
+    if: needs.plan.outputs.clients != '[]'
+    name: deploy (${{ matrix.client }})
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+      packages: read
+    strategy:
+      fail-fast: false
+      max-parallel: 1
+      matrix:
+        client: ${{ fromJSON(needs.plan.outputs.clients) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Imagen aprobada
+        id: img
+        run: |
+          release="$(python3 scripts/stack.py get ${{ matrix.client }} release)"
+          echo "image=ghcr.io/${{ github.repository_owner }}/frappe-${{ matrix.client }}:${release}" >> "$GITHUB_OUTPUT"
+
+      - name: Copiar compose y scripts al VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          source: deploy/production/compose.yml,deploy/production/scripts/deploy-client.sh
+          target: ${{ vars.DEPLOY_ROOT || '/opt/frappe-clients' }}/${{ matrix.client }}
+          strip_components: 2
+
+      - name: Desplegar
+        uses: appleboy/ssh-action@v1.2.0
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+          DEPLOY_ROOT: ${{ vars.DEPLOY_ROOT || '/opt/frappe-clients' }}
+          CLIENT: ${{ matrix.client }}
+          IMAGE: ${{ steps.img.outputs.image }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          command_timeout: 45m
+          script_stop: true
+          envs: GHCR_TOKEN,GHCR_USER,DEPLOY_ROOT,CLIENT,IMAGE
+          script: |
+            set -euo pipefail
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
+            cd "$DEPLOY_ROOT/$CLIENT"
+            if [ -f scripts/deploy-client.sh ]; then mv scripts/deploy-client.sh .; fi
+            chmod +x deploy-client.sh
+            DEPLOY_ROOT="$DEPLOY_ROOT" ./deploy-client.sh "$CLIENT" "$IMAGE"

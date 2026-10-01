@@ -1,10 +1,10 @@
-name: ${COMPOSE_PROJECT_NAME:-frappe-production}
+name: ${COMPOSE_PROJECT_NAME:?set COMPOSE_PROJECT_NAME}
 
 x-backend: &backend
-  image: ${FRAPPE_IMAGE:-ghcr.io/aosagula/frappe-production:main}
-  pull_policy: always
+  image: ${FRAPPE_IMAGE:?set FRAPPE_IMAGE}
+  pull_policy: missing
   environment:
-    SITE_NAME: ${SITE_NAME:-frappe.agentic4biz.com}
+    SITE_NAME: ${SITE_NAME:?set SITE_NAME}
     DB_HOST: mariadb
     DB_PORT: 3306
     DB_ROOT_USER: root
@@ -32,7 +32,7 @@ x-backend: &backend
 
 services:
   mariadb:
-    image: mariadb:10.6
+    image: ${MARIADB_IMAGE:-mariadb:11.8}
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -43,7 +43,7 @@ services:
     volumes:
       - mariadb:/var/lib/mysql
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-p${DB_ROOT_PASSWORD}"]
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized 2>/dev/null || mariadb-admin ping -uroot -p\"$$MYSQL_ROOT_PASSWORD\" 2>/dev/null || mysqladmin ping -uroot -p\"$$MYSQL_ROOT_PASSWORD\""]
       interval: 5s
       timeout: 5s
       retries: 30
@@ -121,14 +121,19 @@ services:
       websocket:
         condition: service_started
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-H", "Host: ${SITE_NAME}", "http://127.0.0.1:8080/api/method/ping"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
     expose:
       - "8080"
     networks:
       internal:
       proxy:
         aliases:
-          - frappe.agentic4biz.com
-          - frappe-frontend
+          - ${SITE_NAME}
+          - ${FRONTEND_ALIAS:?set FRONTEND_ALIAS}
 
 volumes:
   mariadb:
