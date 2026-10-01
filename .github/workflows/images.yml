@@ -97,7 +97,17 @@ jobs:
           dc up -d
           for i in $(seq 1 60); do
             if dc exec -T frontend curl -fsS -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping; then
-              echo; echo "Smoke OK"
+              echo; echo "Smoke OK: backend"
+              # Tiempo real: handshake de socket.io a traves de nginx (sin header Origin, como el polling same-origin)
+              ws_ok=0
+              for j in $(seq 1 12); do
+                if dc exec -T frontend curl -fsS -H "Host: ${SITE}" "http://127.0.0.1:8080/socket.io/?EIO=4&transport=polling" | grep -q '"sid"'; then
+                  ws_ok=1; break
+                fi
+                sleep 5
+              done
+              [ "$ws_ok" = 1 ] || { echo "::error title=smoke ${{ matrix.client }}::websocket no responde"; dc logs --tail 40 websocket; exit 1; }
+              echo "Smoke OK: websocket"
               for origin in $(python3 ../../scripts/stack.py get ${{ matrix.client }} cors_origins | python3 -c "import json,sys; print(' '.join(json.loads(sys.stdin.read() or '[]')))"); do
                 dc exec -T frontend curl -fsS -D - -o /dev/null -H "Host: ${SITE}" -H "Origin: ${origin}" \
                   http://127.0.0.1:8080/api/method/ping | grep -i "access-control-allow-origin: ${origin}" \
@@ -112,7 +122,7 @@ jobs:
           diag="$({
             dc ps -a
             dc exec -T frontend curl -sS -i -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping || true
-            for svc in frontend backend; do dc logs --tail 25 "$svc"; done
+            for svc in frontend websocket backend; do dc logs --tail 25 "$svc"; done
           } 2>&1 | tail -80)"
           diag="${diag//'%'/'%25'}"
           diag="${diag//$'\n'/'%0A'}"

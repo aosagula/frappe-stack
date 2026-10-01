@@ -42,7 +42,9 @@ RUN test -n "${CLIENT}" \
 	&& mkdir -p /home/frappe/prebuilt-assets \
 	&& cp -a /home/frappe/frappe-bench/sites/assets/. /home/frappe/prebuilt-assets/ \
 	&& rm -rf /home/frappe/src /home/frappe/.cache \
-	&& find /home/frappe/frappe-bench/apps -name node_modules -type d -prune -exec rm -rf {} +
+	&& find /home/frappe/frappe-bench/apps -mindepth 2 -name node_modules -type d -prune \
+		-not -path '/home/frappe/frappe-bench/apps/frappe/node_modules' -exec rm -rf {} +
+# Ojo: apps/frappe/node_modules se conserva; el servidor de websocket (socketio.js) lo necesita en runtime.
 
 FROM base AS runtime
 ARG CLIENT
