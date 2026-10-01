@@ -12,6 +12,7 @@ Uso:
 
 import argparse
 import json
+import re
 import subprocess
 import sys
 from datetime import datetime, timedelta, timezone
@@ -76,6 +77,8 @@ def cmd_validate(_args):
 		where = f"clients/{d.name}/client.json"
 		if c.get("name") != d.name:
 			errors.append(f"{where}: name debe ser '{d.name}'")
+		if not re.fullmatch(r"[a-z0-9_]+", d.name):
+			errors.append(f"{where}: el nombre solo admite minusculas, numeros y _ (se usa en nombres de secrets)")
 		for key in ("site", "timezone", "maintenance_window", "deploy"):
 			if key not in c:
 				errors.append(f"{where}: falta '{key}'")

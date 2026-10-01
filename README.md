@@ -78,12 +78,14 @@ docker compose --env-file deploy/production/.env -f deploy/production/compose.ym
 1. Copiar `clients/demo` a `clients/<nuevo>` y renombrar la app (`cliente_demo` → `cliente_<nuevo>`).
 2. Ajustar `client.json`: sitio, zona horaria, ventana, apps opcionales.
 3. Escribir los tests de sus flujos criticos en la app del cliente.
-4. En el VPS: crear `$DEPLOY_ROOT/<nuevo>/.env` a partir de `deploy/production/.env.example`.
+4. Preparar su VPS (Docker + reverse proxy con HTTPS), cargar el secret `VPS_HOST_<nuevo>` y crear `$DEPLOY_ROOT/<nuevo>/.env` a partir de `deploy/production/.env.example`.
 5. Cuando haya release aprobado: `"deploy": {"enabled": true}` y `"release": "<sha>"`.
 
 ## Configuracion en GitHub
 
-- Environment `production` (opcional: con aprobacion manual) con secrets `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
+- Environment `production` (opcional: con aprobacion manual). **Cada cliente tiene su propio VPS**:
+  - `VPS_HOST_<cliente>` (obligatorio, sin default: un cliente sin servidor propio no se despliega).
+  - `VPS_USER_<cliente>` y `VPS_SSH_KEY_<cliente>`, o `VPS_USER` / `VPS_SSH_KEY` sin sufijo como default para todos.
 - Variable `DEPLOY_ROOT` (default `/opt/frappe-clients`).
 - Opcional: `SNAPSHOT_URL_<CLIENTE>` con un backup anonimizado para probar migraciones sobre datos reales.
 

@@ -1,6 +1,7 @@
 # Produccion
 
-Una instancia (compose project) por cliente en el VPS:
+Cada cliente tiene **su propio VPS** con su propia base de datos (secret `VPS_HOST_<cliente>`).
+En cada servidor queda un solo cliente:
 
 ```text
 $DEPLOY_ROOT/
@@ -8,9 +9,10 @@ $DEPLOY_ROOT/
     .env               # del cliente (a partir de .env.example); FRAPPE_IMAGE lo actualiza el deploy
     compose.yml        # lo copia el workflow en cada deploy
     deploy-client.sh   # idem
-  otro-cliente/
-    ...
 ```
+
+Requisitos de cada VPS: Docker con compose, la red `reverse-proxy` y un reverse proxy con HTTPS
+apuntando `https://<site>` a `http://<FRONTEND_ALIAS>:8080`.
 
 - `Dockerfile`: imagen por cliente (`--build-arg CLIENT=<cliente>`), armada con `scripts/build-bench.sh`.
 - `compose.yml`: servicios del cliente. Sin puertos publicados; el frontend se une a la red `reverse-proxy`.
