@@ -1,0 +1,138 @@
+name: Images
+
+# Construye una imagen por cliente con el mismo build-bench.sh que usa el CI,
+# la levanta con el compose de produccion y verifica que responde (smoke test).
+# En main ademas la publica en GHCR con el SHA corto como tag: ese tag es el "release"
+# que despues se aprueba por cliente en clients/<cliente>/client.json.
+
+on:
+  pull_request:
+    paths:
+      - stack.json
+      - apps/**
+      - clients/**
+      - scripts/**
+      - deploy/production/**
+      - .github/workflows/images.yml
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  plan:
+    runs-on: ubuntu-latest
+    outputs:
+      clients: ${{ steps.matrix.outputs.clients }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: matrix
+        run: echo "clients=$(python3 scripts/stack.py matrix)" >> "$GITHUB_OUTPUT"
+
+  build:
+    needs: plan
+    name: image (${{ matrix.client }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        client: ${{ fromJSON(needs.plan.outputs.clients) }}
+    env:
+      IMAGE: ghcr.io/${{ github.repository_owner }}/frappe-${{ matrix.client }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Release
+        id: rel
+        run: echo "release=$(git rev-parse --short=12 HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        if: github.event_name != 'pull_request'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: deploy/production/Dockerfile
+          build-args: |
+            CLIENT=${{ matrix.client }}
+            RELEASE=${{ steps.rel.outputs.release }}
+          load: true
+          tags: ${{ env.IMAGE }}:${{ steps.rel.outputs.release }}
+          cache-from: type=gha,scope=${{ matrix.client }}
+          cache-to: type=gha,mode=max,scope=${{ matrix.client }}
+
+      - name: Smoke test con el compose de produccion
+        working-directory: deploy/production
+        run: |
+          set -euo pipefail
+          SITE="$(python3 ../../scripts/stack.py get ${{ matrix.client }} site)"
+          cat > .env <<EOF
+          COMPOSE_PROJECT_NAME=smoke-${{ matrix.client }}
+          FRAPPE_IMAGE=${IMAGE}:${{ steps.rel.outputs.release }}
+          SITE_NAME=${SITE}
+          FRONTEND_ALIAS=smoke-frontend
+          PROXY_NETWORK=smoke-proxy
+          MARIADB_IMAGE=mariadb:11.8
+          DB_ROOT_PASSWORD=smoke-root
+          ADMIN_PASSWORD=smoke-admin
+          EOF
+          docker network create smoke-proxy
+          dc() { docker compose --env-file .env -f compose.yml "$@"; }
+          dc up -d mariadb redis-cache redis-queue redis-socketio
+          dc run --rm init
+          dc up -d
+          for i in $(seq 1 60); do
+            if dc exec -T frontend curl -fsS -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping; then
+              echo; echo "Smoke OK: backend"
+              # Tiempo real: handshake de socket.io a traves de nginx (sin header Origin, como el polling same-origin)
+              ws_ok=0
+              for j in $(seq 1 12); do
+                if dc exec -T frontend curl -fsS -H "Host: ${SITE}" "http://127.0.0.1:8080/socket.io/?EIO=4&transport=polling" | grep -q '"sid"'; then
+                  ws_ok=1; break
+                fi
+                sleep 5
+              done
+              [ "$ws_ok" = 1 ] || { echo "::error title=smoke ${{ matrix.client }}::websocket no responde"; dc logs --tail 40 websocket; exit 1; }
+              echo "Smoke OK: websocket"
+              for origin in $(python3 ../../scripts/stack.py get ${{ matrix.client }} cors_origins | python3 -c "import json,sys; print(' '.join(json.loads(sys.stdin.read() or '[]')))"); do
+                dc exec -T frontend curl -fsS -D - -o /dev/null -H "Host: ${SITE}" -H "Origin: ${origin}" \
+                  http://127.0.0.1:8080/api/method/ping | grep -i "access-control-allow-origin: ${origin}" \
+                  || { echo "CORS no aplicado para ${origin}"; exit 1; }
+                echo "CORS OK: ${origin}"
+              done
+              exit 0
+            fi
+            sleep 5
+          done
+          # Diagnostico visible como anotaciones del job (los logs completos no siempre son accesibles)
+          diag="$({
+            dc ps -a
+            dc exec -T frontend curl -sS -i -H "Host: ${SITE}" http://127.0.0.1:8080/api/method/ping || true
+            for svc in frontend websocket backend; do dc logs --tail 25 "$svc"; done
+          } 2>&1 | tail -80)"
+          diag="${diag//'%'/'%25'}"
+          diag="${diag//$'\n'/'%0A'}"
+          echo "::error title=smoke ${{ matrix.client }}::${diag}"
+          exit 1
+
+      - name: Publicar
+        if: github.event_name != 'pull_request'
+        run: |
+          docker push "${IMAGE}:${{ steps.rel.outputs.release }}"
+          docker tag "${IMAGE}:${{ steps.rel.outputs.release }}" "${IMAGE}:main"
+          docker push "${IMAGE}:main"
+          echo "### ${{ matrix.client }}: release \`${{ steps.rel.outputs.release }}\`" >> "$GITHUB_STEP_SUMMARY"

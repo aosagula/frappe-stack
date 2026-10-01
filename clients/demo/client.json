@@ -1,0 +1,35 @@
+{
+  "name": "demo",
+  "description": "Cliente ficticio de ejemplo: despachante con clasificacion NCM en articulos.",
+  "site": "demo.agentic4biz.com",
+  "timezone": "America/Argentina/Buenos_Aires",
+  "maintenance_window": {
+    "days": [
+      "sun"
+    ],
+    "start": "02:00",
+    "duration_minutes": 120
+  },
+  "optional_apps": [],
+  "app": {
+    "name": "cliente_demo",
+    "path": "clients/demo/cliente_demo"
+  },
+  "external_apps": [
+    {
+      "name": "app-deposito",
+      "type": "mobile",
+      "repo": "",
+      "api_version": "v1",
+      "description": "App movil de ejemplo para consultar articulos y NCM"
+    }
+  ],
+  "cors_origins": [
+    "https://pedidos.demo.agentic4biz.com"
+  ],
+  "release": "",
+  "deploy": {
+    "enabled": false,
+    "canary": true
+  }
+}

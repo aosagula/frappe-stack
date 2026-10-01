@@ -10,3 +10,6 @@ __pycache__/
 Thumbs.db
 .env
 deploy/production/.env
+
+.work/
+dump.rdb
